@@ -1,67 +1,64 @@
+import os, math
 import pandas as pd
 import numpy as np
-import os
 import fitz
 from PIL import Image
+from collections import Counter
 
 class DataInspector:
-    """
-    Inspect various dataset types: tabular (CSV/Excel), image folders, PDF text.
-    Repair mixed entries and invalid data.
-    """
     def __init__(self, path: str):
         self.path = path
-        self.data = None
         self.type = None
+        self.raw = None
         self.report = {}
 
     def load(self):
         if os.path.isdir(self.path):
-            # image folder
-            self.type = 'image'
-            self.data = [os.path.join(self.path, f) for f in os.listdir(self.path)
-                         if f.lower().endswith(('jpg','png','jpeg','bmp'))]
-        else:
-            ext = os.path.splitext(self.path)[1].lower()
-            if ext in ['.csv', '.tsv']:
-                self.type = 'table'
-                self.data = pd.read_csv(self.path)
-            elif ext in ['.xls', '.xlsx']:
-                self.type = 'table'
-                self.data = pd.read_excel(self.path)
-            elif ext == '.pdf':
-                self.type = 'pdf'
-                doc = fitz.open(self.path)
-                text = "".join(page.get_text() for page in doc)
-                self.data = text
-            else:
-                raise ValueError(f"Unsupported format: {ext}")
-        return self.data
+            self.type = 'image';  return self._load_images()
+        ext = os.path.splitext(self.path)[1].lower()
+        if ext in ('.csv','.tsv'):
+            self.type = 'table'; return pd.read_csv(self.path)
+        if ext in ('.xls','.xlsx'):
+            self.type = 'table'; return pd.read_excel(self.path)
+        if ext == '.pdf':
+            self.type = 'text'
+            doc = fitz.open(self.path)
+            return "".join(p.get_text() for p in doc)
+        raise ValueError(f"Unsupported: {ext}")
 
     def analyze_and_repair(self):
+        data = self.load()
         if self.type == 'table':
-            df = self.data
-            # basic report
-            self.report['shape'] = df.shape
-            # detect mixed-type cells
-            mask = df.applymap(lambda x: isinstance(x, str) and any(c.isalpha() for c in x) and any(c.isdigit() for c in x))
-            # counts
+            df = data.copy()
+            # Mixed‐type detector & repair
+            mask = df.applymap(
+                lambda x: isinstance(x,str) and any(c.isalpha() for c in x) and any(c.isdigit() for c in x)
+            )
             self.report['mixed_cells'] = int(mask.sum().sum())
-            # repair: non-numeric->NaN->mean
-            for col in df.select_dtypes(include='object'):
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-            df.fillna(df.mean(numeric_only=True), inplace=True)
-            self.data = df
+            # convert & fill
+            for col in df.columns:
+                if df[col].dtype == object:
+                    num = pd.to_numeric(df[col], errors='coerce')
+                    df[col] = np.where(num.isna(), num, num).fillna(df[col].median() if num.isna().mean()<0.3 else 0)
+            self.report['shape'] = df.shape
+            self.raw = df
+
         elif self.type == 'image':
-            # report number of images and average dimensions
-            dims = []
-            for f in self.data:
-                with Image.open(f) as img:
-                    dims.append(img.size)
-            self.report['n_images'] = len(dims)
-            w,h = zip(*dims)
-            self.report['avg_width'] = np.mean(w)
-            self.report['avg_height'] = np.mean(h)
-        elif self.type == 'pdf':
-            self.report['n_chars'] = len(self.data)
-        return self.report
+            imgs, labels = [], []
+            for lbl in os.listdir(self.path):
+                p = os.path.join(self.path, lbl)
+                if os.path.isdir(p):
+                    for f in os.listdir(p):
+                        if f.lower().endswith(('jpg','png')):
+                            imgs.append(Image.open(os.path.join(p,f)))
+                            labels.append(lbl)
+            self.report['n_images'] = len(imgs)
+            self.raw = (imgs, labels)
+
+        else:  # text
+            txt = data
+            words = txt.split()
+            self.report['word_count'] = len(words)
+            self.raw = txt
+
+        return self.raw, self.report
