@@ -8,7 +8,6 @@ export const loadImageDataset = async (zipFile: Blob) => {
   let totalImages = 0;
   let totalResolution = 0;
 
-  // Ekstrak metadata gambar (berstruktur folder)
   for (const [path, file] of Object.entries(zip.files)) {
     if (!file.dir && /\.(jpe?g|png|gif)$/i.test(path)) {
       const pathParts = path.split('/');
@@ -37,6 +36,6 @@ export const loadImageDataset = async (zipFile: Blob) => {
     classes: classes.length,
     classDistribution: imageCounts,
     avgResolution: totalResolution / Math.floor(totalImages / 100),
-    channels: 3 // RGB
+    channels: 3
   };
 };
