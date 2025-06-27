@@ -1,4 +1,4 @@
-import Papa, { ParseResult, ParseError, ParseConfig } from 'papaparse';
+import Papa, { ParseResult, ParseError } from 'papaparse';
 
 export interface CSVDatasetSummary {
   type: 'tabular';
@@ -14,7 +14,8 @@ export const loadCSVDataset = (file: Blob): Promise<CSVDatasetSummary> => {
 
     reader.onload = (e) => {
       const csvData = e.target?.result as string;
-      const config: ParseConfig<Record<string, unknown>> = {
+
+      const config = {
         header: true,
         dynamicTyping: true,
         skipEmptyLines: true,
