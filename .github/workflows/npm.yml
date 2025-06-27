@@ -50,7 +50,7 @@ jobs:
       - name: Publish to GitHub Packages (opsional)
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          # set registry untuk scope @your-username
+          # set registry untuk scope @4211421036
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
           npm publish
         env:
