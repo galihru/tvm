@@ -1,8 +1,4 @@
-import Papa, {
-  ParseResult,
-  ParseError,
-  ParseConfig,
-} from 'papaparse';
+import Papa, { ParseResult, ParseError, ParseConfig } from 'papaparse';
 
 export interface CSVDatasetSummary {
   type: 'tabular';
@@ -18,28 +14,25 @@ export const loadCSVDataset = (file: Blob): Promise<CSVDatasetSummary> => {
 
     reader.onload = (e) => {
       const csvData = e.target?.result as string;
-
       const config: ParseConfig<Record<string, unknown>> = {
         header: true,
         dynamicTyping: true,
         skipEmptyLines: true,
         complete: (results: ParseResult<Record<string, unknown>>) => {
           const data = results.data;
-          if (data.length === 0) {
+          if (!data.length) {
             reject(new Error('CSV file is empty'));
             return;
           }
 
-          // Ambil nama kolom terakhir sebagai label
           const columns = results.meta.fields ?? [];
-          const targetColumn = columns[columns.length - 1];
+          const target = columns[columns.length - 1];
+          const dist: Record<string, number> = {};
 
-          // Hitung distribusi kelas
-          const classDistribution: Record<string, number> = {};
           data.forEach((row) => {
-            const label = row[targetColumn] as string | undefined;
+            const label = row[target] as string | undefined;
             if (label !== undefined) {
-              classDistribution[label] = (classDistribution[label] || 0) + 1;
+              dist[label] = (dist[label] || 0) + 1;
             }
           });
 
@@ -47,8 +40,8 @@ export const loadCSVDataset = (file: Blob): Promise<CSVDatasetSummary> => {
             type: 'tabular',
             size: data.length,
             features: columns.length - 1,
-            classes: Object.keys(classDistribution).length,
-            classDistribution,
+            classes: Object.keys(dist).length,
+            classDistribution: dist,
           });
         },
         error: (err: ParseError) => {
