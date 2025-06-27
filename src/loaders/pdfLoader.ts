@@ -1,62 +1,85 @@
+// src/loaders/pdfLoader.ts
+
 import JSZip from 'jszip';
-import pdf from 'pdf-parse';
+import pdfParse, { PdfParseData } from 'pdf-parse';
 
-export const loadPDFDataset = async (zipFile: Blob): Promise<any> => {
-    const zip = new JSZip();
-    await zip.loadAsync(zipFile);
+export interface PdfDatasetSummary {
+  type: 'pdf';
+  size: number;
+  classes: number;
+  classDistribution: Record<string, number>;
+  avgTextLength: number;
+  avgPages: number;
+  vocabSize: number;
+}
 
-    const classes: string[] = [];
-    const pdfCounts: Record<string, number> = {};
-    let totalPDFs = 0;
-    let totalPages = 0;
-    let totalTextLength = 0;
-    let sampleCount = 0;
+export const loadPDFDataset = async (zipFile: Blob): Promise<PdfDatasetSummary> => {
+  const zip = new JSZip();
+  await zip.loadAsync(zipFile);
 
-    const folderRegex = /(.+)\//;
+  const classes: string[] = [];
+  const pdfCounts: Record<string, number> = {};
+  let totalPDFs = 0;
+  let totalPages = 0;
+  let totalTextLength = 0;
+  let sampleCount = 0;
 
-    const filePromises: Promise<void>[] = [];
-    zip.forEach((relativePath, file) => {
-        if (!file.dir && relativePath.endsWith('.pdf')) {
-            const match = relativePath.match(folderRegex);
-            if (match) {
-                const className = match[1];
-                if (!classes.includes(className)) {
-                    classes.push(className);
-                    pdfCounts[className] = 0;
-                }
-
-                pdfCounts[className]++;
-                totalPDFs++;
-
-                if (totalPDFs % 20 === 0) {
-                    filePromises.push((async () => {
-                        try {
-                            const pdfBlob = await file.async('arraybuffer');
-                            const data = await pdf(Buffer.from(pdfBlob));
-                            totalTextLength += data.text.length;
-                            totalPages += data.numpages;
-                            sampleCount++;
-                        } catch (e) {
-                            console.error(`Error processing PDF ${relativePath}:`, e);
-                        }
-                    })());
-                }
-            }
+  // Ambil semua entry .pdf di dalam zip
+  zip.forEach((relativePath, file) => {
+    if (!file.dir && relativePath.endsWith('.pdf')) {
+      const folderMatch = relativePath.match(/^([^\/]+)\//);
+      if (folderMatch) {
+        const className = folderMatch[1];
+        if (!classes.includes(className)) {
+          classes.push(className);
+          pdfCounts[className] = 0;
         }
-    });
+        pdfCounts[className]++;
+        totalPDFs++;
+      }
+    }
+  });
 
-    await Promise.all(filePromises);
+  // Proses parsing hanya tiap 20 file pertama (atau sesuai logika lama)
+  const fileEntries = Object.entries(pdfCounts);
+  const parsePromises: Promise<void>[] = [];
 
-    const avgTextLength = sampleCount > 0 ? totalTextLength / sampleCount : 0;
-    const avgPages = sampleCount > 0 ? totalPages / sampleCount : 0;
+  let processed = 0;
+  zip.forEach((relativePath, file) => {
+    if (!file.dir && relativePath.endsWith('.pdf') && processed % 20 === 0) {
+      const match = relativePath.match(/^([^\/]+)\//);
+      if (match) {
+        parsePromises.push(
+          (async () => {
+            const arrayBuf = await file.async('arraybuffer');
+            const buffer = Buffer.from(arrayBuf);
+            const data: PdfParseData = await pdfParse(buffer);
 
-    return {
-        type: 'text',
-        size: totalPDFs,
-        classes: classes.length,
-        classDistribution: pdfCounts,
-        avgTextLength,
-        avgPages,
-        vocabSize: Math.round(avgTextLength * 0.1)
-    };
+            totalTextLength += data.text.length;
+            totalPages += data.numpages;
+          })()
+        );
+      }
+    }
+    processed++;
+  });
+
+  await Promise.all(parsePromises);
+
+  const avgTextLength = parsePromises.length
+    ? totalTextLength / parsePromises.length
+    : 0;
+  const avgPages = parsePromises.length
+    ? totalPages / parsePromises.length
+    : 0;
+
+  return {
+    type: 'pdf',
+    size: totalPDFs,
+    classes: classes.length,
+    classDistribution: pdfCounts,
+    avgTextLength,
+    avgPages,
+    vocabSize: Math.round(avgTextLength * 0.1),
+  };
 };
