@@ -1,73 +1,91 @@
-import { calculateEpochs, calculateLearningRate } from './mathUtils';
+import { calculateEpochs, calculateLearningRate, calculateBatchSize } from './mathUtils';
 
 const MODEL_RECOMMENDATIONS = {
-  'image_low': {
-    model: 'MobileNetV2',
-    layers: [
-      { type: 'convolution', filters: 32, kernel: 3 },
-      { type: 'separable-conv', filters: 64 },
-      { type: 'global-pooling' }
-    ],
-    paper: "MobileNetV2: Inverted Residuals and Linear Bottlenecks (Sandler, 2018)"
-  },
-  'image_high': {
-    model: 'EfficientNetB7',
-    layers: [
-      { type: 'convolution', filters: 64, kernel: 7 },
-      { type: 'mb-conv', filters: 128, expansion: 6 },
-      { type: 'mb-conv', filters: 256, expansion: 6 },
-      { type: 'attention-pooling' }
-    ],
-    paper: "EfficientNet: Rethinking Model Scaling for CNN (Tan, 2019)"
-  },
-  'tabular_low': {
-    model: 'MLP (Multi-Layer Perceptron)',
-    layers: [
-      { type: 'dense', units: 64, activation: 'relu' },
-      { type: 'dropout', rate: 0.2 },
-      { type: 'dense', units: 32, activation: 'relu' }
-    ],
-    paper: "Deep Learning for Tabular Data (Borisov, 2021)"
-  },
-  'text_medium': {
-    model: 'DistilBERT',
-    layers: [
-      { type: 'embedding', dim: 768 },
-      { type: 'transformer', heads: 12, layers: 6 },
-      { type: 'pooling' }
-    ],
-    paper: "DistilBERT, a distilled version of BERT (Sanh, 2019)"
-  }
+    'image_low': {
+        model: 'MobileNetV2',
+        layers: [
+            { type: 'convolution', filters: 32, kernel: 3, activation: 'relu' },
+            { type: 'depthwise-conv', kernel: 3 },
+            { type: 'pointwise-conv', filters: 64 },
+            { type: 'global-average-pooling' }
+        ],
+        paper: "MobileNetV2: Inverted Residuals and Linear Bottlenecks (Sandler, 2018)"
+    },
+    'image_medium': {
+        model: 'ResNet50',
+        layers: [
+            { type: 'convolution', filters: 64, kernel: 7, stride: 2 },
+            { type: 'max-pooling', pool: 3, stride: 2 },
+            { type: 'residual', filters: [64, 64, 256], blocks: 3 },
+            { type: 'residual', filters: [128, 128, 512], blocks: 4 },
+            { type: 'global-average-pooling' }
+        ],
+        paper: "Deep Residual Learning for Image Recognition (He, 2016)"
+    },
+    
+    'tabular_low': {
+        model: 'MLP (3 Layers)',
+        layers: [
+            { type: 'dense', units: 64, activation: 'relu' },
+            { type: 'dropout', rate: 0.2 },
+            { type: 'dense', units: 32, activation: 'relu' }
+        ],
+        paper: "Tabular Data: Deep Learning is Not All You Need (Borisov, 2021)"
+    },
+    'tabular_high': {
+        model: 'TabTransformer',
+        layers: [
+            { type: 'embedding', input_dim: 100, output_dim: 32 },
+            { type: 'transformer', heads: 4, key_dim: 16 },
+            { type: 'flatten' },
+            { type: 'dense', units: 128, activation: 'gelu' }
+        ],
+        paper: "TabTransformer: Tabular Data Modeling Using Contextual Embeddings (Huang, 2020)"
+    },
+    
+    'text_medium': {
+        model: 'DistilBERT',
+        layers: [
+            { type: 'embedding', vocab_size: 30522, embed_dim: 768 },
+            { type: 'transformer', num_heads: 12, ff_dim: 3072, num_layers: 6 },
+            { type: 'pooling', mode: 'mean' }
+        ],
+        paper: "DistilBERT, a distilled version of BERT (Sanh, 2019)"
+    },
+    'text_high': {
+        model: 'RoBERTa',
+        layers: [
+            { type: 'embedding', vocab_size: 50265, embed_dim: 1024 },
+            { type: 'transformer', num_heads: 16, ff_dim: 4096, num_layers: 24 },
+            { type: 'pooling', mode: 'cls' }
+        ],
+        paper: "RoBERTa: A Robustly Optimized BERT Approach (Liu, 2019)"
+    }
 };
 
 export const recommendModel = (analysis: any) => {
-  const key = analysis.recommendationKey;
-  const complexityLevel = analysis.complexity > 1e6 ? 'high' : analysis.complexity > 1e4 ? 'medium' : 'low';
-  const modelKey = `${analysis.dataType}_${complexityLevel}`;
-  
-  const recommendation = MODEL_RECOMMENDATIONS[modelKey] || {
-    model: 'Default Neural Network',
-    layers: [
-      { type: 'dense', units: 128, activation: 'relu' },
-      { type: 'dense', units: 64, activation: 'relu' }
-    ],
-    paper: "Deep Learning (Goodfellow, 2016)"
-  };
+    const complexityLevel = analysis.complexity > 1e6 ? 'high' : 
+                          analysis.complexity > 1e4 ? 'medium' : 'low';
+    
+    const modelKey = `${analysis.dataType}_${complexityLevel}`;
+    const recommendation = MODEL_RECOMMENDATIONS[modelKey] || MODEL_RECOMMENDATIONS[`${analysis.dataType}_medium`];
+    
+    const epochs = calculateEpochs(analysis.size, analysis.complexity);
+    const learningRate = calculateLearningRate(analysis.entropy || 1);
+    const batchSize = calculateBatchSize(analysis.size);
 
-  const epochs = calculateEpochs(analysis.size, analysis.complexity);
-  const learningRate = calculateLearningRate(analysis.entropy);
-
-  return {
-    ...recommendation,
-    hyperparameters: {
-      epochs,
-      learningRate,
-      batchSize: Math.min(256, Math.pow(2, Math.floor(Math.log2(analysis.size/100)))),
-      validationSplit: 0.2,
-      earlyStopping: true
-    },
-    explanation: `Based on ${analysis.size} samples with ${analysis.complexity.toExponential(2)} complexity, 
-    we recommend ${recommendation.model} from research: "${recommendation.paper}". 
-    Use initial learning rate of ${learningRate.toFixed(5)} with ${epochs} epochs.`
-  };
+    return {
+        ...recommendation,
+        hyperparameters: {
+            epochs,
+            learningRate,
+            batchSize,
+            validationSplit: 0.2,
+            earlyStopping: true
+        },
+        explanation: `Based on analysis of your ${analysis.dataType} dataset with ${analysis.size} samples ` +
+                     `and complexity ${analysis.complexity.toExponential(2)}, we recommend ` +
+                     `${recommendation.model} from research: "${recommendation.paper}". ` +
+                     `Use ${epochs} epochs with learning rate ${learningRate.toFixed(5)}.`
+    };
 };
