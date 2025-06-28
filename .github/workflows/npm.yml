@@ -8,6 +8,10 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,7 +21,6 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm install
@@ -29,31 +32,31 @@ jobs:
         run: npm run build
 
       # Publish to npmjs (@galihridhoutomo)
-      - name: Configure npmjs auth
+      - name: Publish to npmjs
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
+          # Configure npmjs registry
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
           echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
-
-      - name: Publish to npmjs
-        run: npm publish --access public
+          
+          # Publish with explicit registry
+          npm publish --access public --registry=https://registry.npmjs.org
 
       # Publish to GitHub Packages (@4211421036)
-      - name: Configure GitHub Packages auth
-        run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
-          echo "@4211421036:registry=https://npm.pkg.github.com" >> ~/.npmrc
-
       - name: Publish to GitHub Packages
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          # Backup original package.json
-          cp package.json package.json.bak
+          # Configure GitHub Packages registry
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
+          echo "@4211421036:registry=https://npm.pkg.github.com" >> ~/.npmrc
           
-          # Temporarily change name and registry
+          # Temporarily modify package.json
+          cp package.json package.json.bak
           npm pkg set name=@4211421036/tvm
           npm pkg set publishConfig.registry=https://npm.pkg.github.com
           
-          # Publish
-          npm publish --access public
+          # Publish with explicit registry
+          npm publish --access public --registry=https://npm.pkg.github.com
           
-          # Restore original package.json
+          # Restore package.json
           mv package.json.bak package.json
