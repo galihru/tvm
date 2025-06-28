@@ -41,7 +41,7 @@ jobs:
           # Publish with explicit registry
           npm publish --access public --registry=https://registry.npmjs.org
           # Store package URL
-          echo "NPM_PACKAGE_URL=https://www.npmjs.com/package/@galihridhoutomo/tvm/v/$VERSION" >> $GITHUB_ENV
+          echo "NPM_PACKAGE_URL=https://www.npmjs.com/package/@galihridhoutomo/tvm/" >> $GITHUB_ENV
           echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Create deployment status
