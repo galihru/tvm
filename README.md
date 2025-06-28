@@ -135,7 +135,7 @@ Generates model recommendation with hyperparameters.
 ## Usage Example
 
 ```javascript
-import { loadDataset, analyzeDataset, recommendModel } from 'webnn-advisor';
+import { loadDataset, analyzeDataset, recommendModel } from 'tvmai';
 
 async function processDataset(file) {
   try {
@@ -175,7 +175,7 @@ document.getElementById('datasetInput').addEventListener('change', async (e) => 
 <head>
   <title>WebNN Model Advisor</title>
   <script type="module">
-    import { loadDataset, analyzeDataset, recommendModel } from './node_modules/webnn-advisor/dist/index.js';
+    import { loadDataset, analyzeDataset, recommendModel } from './node_modules/tvmai/dist/index.js';
     
     window.processDataset = async (file) => {
       const metadata = await loadDataset(file);
