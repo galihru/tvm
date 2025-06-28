@@ -5,6 +5,10 @@
   "main": "dist/index.js",
   "types": "types/index.d.ts",
   "files": ["dist", "types"],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "prepublish": "npm run build",
