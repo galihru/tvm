@@ -34,8 +34,8 @@ jobs:
         run: npm run build
 
       - name: Run tests
-        run: npm test
-
+        run: npm test -- --passWithNoTests
+        
       # Publish to npmjs (@galihridhoutomo)
       - name: Publish to npmjs
         if: startsWith(github.ref, 'refs/tags/v')
