@@ -1,63 +1,59 @@
-name: Publish WebNN Module
+name: Publish Package
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - 'v*.*.*'
+    branches: [main]
+    tags: ['v*.*.*']
 
 permissions:
-  contents: write
+  contents: read
   packages: write
-  id-token: write
 
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
-    environment: npmjs
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js & cache
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: '**/package.json'
 
       - name: Install dependencies
         run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
-      - name: Build
+      - name: Build package
         run: npm run build
 
       - name: Run tests
-        run: npm test -- --passWithNoTests
+        run: npm test
 
-      #–– Publish to npmjs.org under @galihridhoutomo/tvm ––#
-      - name: Configure npmjs registry auth
+      # Publish to npmjs (@galihridhoutomo)
+      - name: Publish to npmjs
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          # default registry => npmjs.org
+          npm config set @galihridhoutomo:registry https://registry.npmjs.org
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish to npmjs.org
-        run: npm publish --access public
-
-      #–– Patch package.json for GitHub Packages ––#
-      - name: Patch package.json to @4211421036/tvm
-        run: |
-          npm pkg set name=@4211421036/tvm \
-                       publishConfig.registry=https://npm.pkg.github.com/
-
-      #–– Configure GitHub Packages auth ––#
-      - name: Configure GitHub Packages auth
-        run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GH_TOKEN }}" >> ~/.npmrc
-
-      #–– Publish to GitHub Packages under @4211421036/tvm ––#
+      # Publish to GitHub Packages (@4211421036)
       - name: Publish to GitHub Packages
-        run: npm publish --access public --registry=https://npm.pkg.github.com/
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          # Temporarily change package name for GitHub Packages
+          npm pkg set name=@4211421036/tvm
+          npm config set @4211421036:registry https://npm.pkg.github.com
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
+          npm publish --access public
+          # Revert package name change
+          git checkout -- package.json
