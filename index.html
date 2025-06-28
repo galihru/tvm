@@ -5,251 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebNN Model Advisor - AI Recommendation Engine</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script type="module">
-        import { loadDataset, analyzeDataset, recommendModel } from 'https://cdn.jsdelivr.net/npm/@galihridhoutomo/tvmai@0.1.7/dist/index.js';
-
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
-        const datasetInfo = document.getElementById('dataset-info');
-        const recommendation = document.getElementById('recommendation');
-        const loadingIndicator = document.getElementById('loading');
-        const errorDisplay = document.getElementById('error');
-        const filePreview = document.getElementById('file-preview');
-        const fileDetails = document.getElementById('file-details');
-        const modelVisualization = document.getElementById('model-visualization');
-        const copyBtn = document.getElementById('copy-btn');
-        const downloadBtn = document.getElementById('download-btn');
-
-        // Event Listeners
-        dropZone.addEventListener('dragover', handleDragOver);
-        dropZone.addEventListener('dragleave', handleDragLeave);
-        dropZone.addEventListener('drop', handleDrop);
-        fileInput.addEventListener('change', handleFileSelect);
-        copyBtn.addEventListener('click', copyRecommendation);
-        downloadBtn.addEventListener('click', downloadReport);
-
-        // Functions
-        function handleDragOver(e) {
-            e.preventDefault();
-            dropZone.classList.add('drag-over');
-        }
-
-        function handleDragLeave() {
-            dropZone.classList.remove('drag-over');
-        }
-
-        function handleDrop(e) {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-            if (e.dataTransfer.files.length) {
-                processFile(e.dataTransfer.files[0]);
-            }
-        }
-
-        function handleFileSelect(e) {
-            if (e.target.files.length) {
-                processFile(e.target.files[0]);
-            }
-        }
-
-        async function processFile(file) {
-            try {
-                // Reset UI
-                errorDisplay.classList.add('hidden');
-                datasetInfo.classList.add('hidden');
-                recommendation.classList.add('hidden');
-                loadingIndicator.classList.remove('hidden');
-                filePreview.innerHTML = '';
-                fileDetails.innerHTML = '';
-                modelVisualization.innerHTML = '';
-
-                // Show file preview
-                const fileType = getFileType(file.name);
-                showFilePreview(file, fileType);
-
-                // Process dataset
-                const metadata = await loadDataset(file);
-                const analysis = analyzeDataset(metadata);
-                const recommendationData = recommendModel(analysis);
-
-                // Display results
-                displayDatasetInfo(metadata);
-                displayRecommendation(recommendationData);
-                visualizeModel(recommendationData.layers);
-
-                loadingIndicator.classList.add('hidden');
-                datasetInfo.classList.remove('hidden');
-                recommendation.classList.remove('hidden');
-            } catch (error) {
-                console.error('Error processing dataset:', error);
-                loadingIndicator.classList.add('hidden');
-                errorDisplay.textContent = `Error: ${error.message}`;
-                errorDisplay.classList.remove('hidden');
-            }
-        }
-
-        function getFileType(filename) {
-            if (filename.endsWith('.csv')) return 'csv';
-            if (filename.endsWith('.zip')) {
-                if (filename.toLowerCase().includes('image')) return 'image';
-                if (filename.toLowerCase().includes('pdf')) return 'pdf';
-                return 'unknown';
-            }
-            return 'unknown';
-        }
-
-        function showFilePreview(file, type) {
-            filePreview.innerHTML = `
-                <div class="file-preview-card">
-                    <div class="file-icon">
-                        ${type === 'csv' ? '<i class="fa-solid fa-file-csv"></i>' : ''}
-                        ${type === 'image' ? '<i class="fa-solid fa-file-image"></i>' : ''}
-                        ${type === 'pdf' ? '<i class="fa-solid fa-file-pdf"></i>' : ''}
-                        ${type === 'unknown' ? '<i class="fa-solid fa-file"></i>' : ''}
-                    </div>
-                    <div class="file-info">
-                        <h3>${file.name}</h3>
-                        <p>${formatFileSize(file.size)}</p>
-                        <p class="file-type">${type.toUpperCase()} file</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        function displayDatasetInfo(metadata) {
-            fileDetails.innerHTML = `
-                <div class="file-detail">
-                    <span>Jenis Dataset:</span>
-                    <span class="detail-value">${metadata.type}</span>
-                </div>
-                <div class="file-detail">
-                    <span>Jumlah Sampel:</span>
-                    <span class="detail-value">${metadata.size.toLocaleString()}</span>
-                </div>
-                ${metadata.classes ? `
-                <div class="file-detail">
-                    <span>Jumlah Kelas:</span>
-                    <span class="detail-value">${metadata.classes}</span>
-                </div>` : ''}
-                ${metadata.features ? `
-                <div class="file-detail">
-                    <span>Jumlah Fitur:</span>
-                    <span class="detail-value">${metadata.features}</span>
-                </div>` : ''}
-                ${metadata.avgResolution ? `
-                <div class="file-detail">
-                    <span>Resolusi Rata-rata:</span>
-                    <span class="detail-value">${Math.round(metadata.avgResolution)} pixels</span>
-                </div>` : ''}
-                ${metadata.avgTextLength ? `
-                <div class="file-detail">
-                    <span>Panjang Teks Rata-rata:</span>
-                    <span class="detail-value">${metadata.avgTextLength.toLocaleString()} karakter</span>
-                </div>` : ''}
-                ${metadata.vocabSize ? `
-                <div class="file-detail">
-                    <span>Ukuran Kosakata:</span>
-                    <span class="detail-value">${metadata.vocabSize.toLocaleString()}</span>
-                </div>` : ''}
-            `;
-        }
-
-        function displayRecommendation(recommendation) {
-            const hyper = recommendation.hyperparameters;
-            
-            document.getElementById('model-name').textContent = recommendation.model;
-            document.getElementById('model-paper').innerHTML = `<strong>Referensi:</strong> ${recommendation.paper}`;
-            document.getElementById('model-explanation').textContent = recommendation.explanation;
-            
-            document.getElementById('hyper-epochs').textContent = hyper.epochs;
-            document.getElementById('hyper-lr').textContent = hyper.learningRate.toFixed(5);
-            document.getElementById('hyper-batch').textContent = hyper.batchSize;
-            document.getElementById('hyper-validation').textContent = `${hyper.validationSplit * 100}%`;
-            document.getElementById('hyper-stopping').textContent = hyper.earlyStopping ? 'Ya' : 'Tidak';
-            
-            // Show copy/download buttons
-            copyBtn.classList.remove('hidden');
-            downloadBtn.classList.remove('hidden');
-        }
-
-        function visualizeModel(layers) {
-            modelVisualization.innerHTML = '<h3>Visualisasi Arsitektur Model</h3>';
-            
-            layers.forEach((layer, index) => {
-                const layerCard = document.createElement('div');
-                layerCard.className = 'model-layer';
-                layerCard.innerHTML = `
-                    <div class="layer-header">
-                        <span class="layer-number">${index + 1}</span>
-                        <span class="layer-type">${layer.type}</span>
-                    </div>
-                    <div class="layer-details">
-                        ${Object.entries(layer)
-                            .filter(([key]) => key !== 'type')
-                            .map(([key, value]) => `
-                                <div class="layer-param">
-                                    <span>${key}:</span>
-                                    <span>${Array.isArray(value) ? value.join(', ') : value}</span>
-                                </div>
-                            `)
-                            .join('')}
-                    </div>
-                `;
-                modelVisualization.appendChild(layerCard);
-            });
-        }
-
-        function copyRecommendation() {
-            const modelName = document.getElementById('model-name').textContent;
-            const explanation = document.getElementById('model-explanation').textContent;
-            const hyper = document.getElementById('hyper-params').innerText;
-            
-            const text = `Model Rekomendasi: ${modelName}\n\n${explanation}\n\nHyperparameter:\n${hyper}`;
-            
-            navigator.clipboard.writeText(text)
-                .then(() => {
-                    const alert = document.createElement('div');
-                    alert.className = 'alert success';
-                    alert.textContent = 'Rekomendasi berhasil disalin!';
-                    document.body.appendChild(alert);
-                    setTimeout(() => alert.remove(), 3000);
-                })
-                .catch(err => {
-                    console.error('Failed to copy: ', err);
-                });
-        }
-
-        function downloadReport() {
-            const modelName = document.getElementById('model-name').textContent;
-            const explanation = document.getElementById('model-explanation').textContent;
-            const hyper = document.getElementById('hyper-params').innerText;
-            const layers = document.getElementById('model-visualization').innerText;
-            
-            const content = `WebNN Model Advisor Report\n\n` +
-                            `Model Rekomendasi: ${modelName}\n\n` +
-                            `${explanation}\n\n` +
-                            `Hyperparameter:\n${hyper}\n\n` +
-                            `Arsitektur Model:\n${layers}`;
-            
-            const blob = new Blob([content], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `model-advisor-report-${new Date().toISOString().slice(0, 10)}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-    </script>
     <style>
         :root {
             --primary: #4361ee;
@@ -707,8 +462,628 @@
         </div>
     </div>
 
+    <script type="module">
+        const calculateEntropy = (values) => {
+            const total = values.reduce((sum, val) => sum + val, 0);
+            return values.reduce((entropy, val) => {
+                const p = val / total;
+                return entropy - (p > 0 ? p * Math.log2(p) : 0);
+            }, 0);
+        };
+
+        const calculateEpochs = (datasetSize, complexity) => {
+            return Math.min(500, Math.max(20, Math.round(50 + 150 * Math.log(complexity) / Math.log(datasetSize))));
+        };
+
+        const calculateLearningRate = (entropy) => {
+            return Math.min(0.1, Math.max(1e-5, 0.1 * Math.exp(-1.5 * entropy)));
+        };
+
+        const calculateBatchSize = (datasetSize) => {
+            return Math.pow(2, Math.floor(Math.log2(Math.sqrt(datasetSize))));
+        };
+
+        const analyzeDataset = (metadata) => {
+            let analysis = {};
+
+            if (metadata.type === 'image') {
+                analysis.complexity = metadata.classes * metadata.avgResolution * metadata.channels;
+                analysis.dataType = 'image';
+            } else if (metadata.type === 'tabular') {
+                const entropy = calculateEntropy(Object.values(metadata.classDistribution));
+                analysis.complexity = entropy * metadata.features;
+                analysis.dataType = 'tabular';
+            } else if (metadata.type === 'text') {
+                analysis.complexity = metadata.avgLength * metadata.vocabSize;
+                analysis.dataType = 'text';
+            }
+
+            return {
+                ...metadata,
+                ...analysis,
+                recommendationKey: `${analysis.dataType}_${Math.round(analysis.complexity)}`
+            };
+        };
+
+        const MODEL_RECOMMENDATIONS = {
+            image_low: {
+                model: 'MobileNetV2',
+                layers: [
+                    { type: 'convolution', filters: 32, kernel: 3, activation: 'relu' },
+                    { type: 'depthwise-conv', kernel: 3 },
+                    { type: 'pointwise-conv', filters: 64 },
+                    { type: 'global-average-pooling' }
+                ],
+                paper: 'MobileNetV2: Inverted Residuals and Linear Bottlenecks (Sandler, 2018)'
+            },
+            image_medium: {
+                model: 'ResNet50',
+                layers: [
+                    { type: 'convolution', filters: 64, kernel: 7, stride: 2 },
+                    { type: 'max-pooling', pool: 3, stride: 2 },
+                    { type: 'residual', filters: [64, 64, 256], blocks: 3 },
+                    { type: 'residual', filters: [128, 128, 512], blocks: 4 },
+                    { type: 'global-average-pooling' }
+                ],
+                paper: 'Deep Residual Learning for Image Recognition (He, 2016)'
+            },
+            image_high: {
+                model: 'EfficientNetB0',
+                layers: [
+                    { type: 'measurement', detail: 'example' }
+                ],
+                paper: 'EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks (Tan, 2019)'
+            },
+            tabular_low: {
+                model: 'MLP (3 Layers)',
+                layers: [
+                    { type: 'dense', units: 64, activation: 'relu' },
+                    { type: 'dropout', rate: 0.2 },
+                    { type: 'dense', units: 32, activation: 'relu' }
+                ],
+                paper: 'Tabular Data: Deep Learning is Not All You Need (Borisov, 2021)'
+            },
+            tabular_medium: {
+                model: 'XGBoost',
+                layers: [],
+                paper: 'XGBoost: A Scalable Tree Boosting System (Chen & Guestrin, 2016)'
+            },
+            tabular_high: {
+                model: 'TabTransformer',
+                layers: [
+                    { type: 'embedding', input_dim: 100, output_dim: 32 },
+                    { type: 'transformer', heads: 4, key_dim: 16 },
+                    { type: 'flatten' },
+                    { type: 'dense', units: 128, activation: 'gelu' }
+                ],
+                paper: 'TabTransformer: Tabular Data Modeling Using Contextual Embeddings (Huang, 2020)'
+            },
+            text_low: {
+                model: 'Bag-of-Words + MLP',
+                layers: [
+                    { type: 'vectorize', method: 'tf-idf' },
+                    { type: 'dense', units: 128, activation: 'relu' }
+                ],
+                paper: 'Classical Approaches to Text Classification (Sebastiani, 2002)'
+            },
+            text_medium: {
+                model: 'DistilBERT',
+                layers: [
+                    { type: 'embedding', vocab_size: 30522, embed_dim: 768 },
+                    { type: 'transformer', num_heads: 12, ff_dim: 3072, num_layers: 6 },
+                    { type: 'pooling', mode: 'mean' }
+                ],
+                paper: 'DistilBERT, a distilled version of BERT (Sanh, 2019)'
+            },
+            text_high: {
+                model: 'RoBERTa',
+                layers: [
+                    { type: 'embedding', vocab_size: 50265, embed_dim: 1024 },
+                    { type: 'transformer', num_heads: 16, ff_dim: 4096, num_layers: 24 },
+                    { type: 'pooling', mode: 'cls' }
+                ],
+                paper: 'RoBERTa: A Robustly Optimized BERT Approach (Liu, 2019)'
+            }
+        };
+
+        const recommendModel = (analysis) => {
+            const complexityLevel = analysis.complexity > 1e6
+                ? 'high'
+                : analysis.complexity > 1e4
+                ? 'medium'
+                : 'low';
+
+            const key = `${analysis.dataType}_${complexityLevel}`;
+            const fallback = `${analysis.dataType}_medium`;
+            const recommendation = MODEL_RECOMMENDATIONS[key] || MODEL_RECOMMENDATIONS[fallback];
+
+            // Hitung hyperparameters
+            const epochs = calculateEpochs(analysis.size, analysis.complexity);
+            const learningRate = calculateLearningRate(analysis.entropy || 1);
+            const batchSize = calculateBatchSize(analysis.size);
+
+            return {
+                ...recommendation,
+                hyperparameters: {
+                    epochs,
+                    learningRate,
+                    batchSize,
+                    validationSplit: 0.2,
+                    earlyStopping: true
+                },
+                explanation: `Berdasarkan dataset ${analysis.dataType} ` +
+                    `dengan ${analysis.size} sampel dan kompleksitas ${analysis.complexity.toExponential(2)}, ` +
+                    `kami rekomendasikan model ${recommendation.model} ` +
+                    `(paper: "${recommendation.paper}"). ` +
+                    `Gunakan ${epochs} epoch dengan learning rate ${learningRate.toFixed(5)}.`
+            };
+        };
+
+        const loadCSVDataset = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+
+                reader.onload = (e) => {
+                    const csvData = e.target?.result;
+
+                    Papa.parse(csvData, {
+                        header: true,
+                        dynamicTyping: true,
+                        skipEmptyLines: true,
+                        complete: (results) => {
+                            const data = results.data;
+                            if (data.length === 0) {
+                                reject(new Error("File CSV kosong"));
+                                return;
+                            }
+
+                            const columns = results.meta.fields || [];
+                            const targetColumn = columns[columns.length - 1];
+                            const classDistribution = {};
+
+                            data.forEach((row) => {
+                                const label = row[targetColumn];
+                                if (label !== undefined) {
+                                    classDistribution[label] = (classDistribution[label] || 0) + 1;
+                                }
+                            });
+
+                            resolve({
+                                type: 'tabular',
+                                size: data.length,
+                                features: columns.length - 1,
+                                classes: Object.keys(classDistribution).length,
+                                classDistribution
+                            });
+                        },
+                        error: (error) => {
+                            reject(error);
+                        }
+                    });
+                };
+                
+                reader.onerror = () => {
+                    reject(new Error("Gagal membaca file CSV"));
+                };
+                
+                reader.readAsText(file);
+            });
+        };
+
+        const loadImageDataset = async (zipFile) => {
+            const JSZip = window.JSZip;
+            const zip = new JSZip();
+            await zip.loadAsync(zipFile);
+
+            const classes = [];
+            const imageCounts = {};
+            let totalImages = 0;
+            let totalResolution = 0;
+            let sampleCount = 0;
+
+            const folderRegex = /(.+)\//;
+
+            const filePromises = [];
+            zip.forEach((relativePath, file) => {
+                if (!file.dir && /\.(jpe?g|png|gif|webp)$/i.test(relativePath)) {
+                    const match = relativePath.match(folderRegex);
+                    if (match) {
+                        const className = match[1];
+                        if (!classes.includes(className)) {
+                            classes.push(className);
+                            imageCounts[className] = 0;
+                        }
+
+                        imageCounts[className]++;
+                        totalImages++;
+
+                        if (totalImages % 100 === 0) {
+                            filePromises.push((async () => {
+                                try {
+                                    const imgBlob = await file.async('blob');
+                                    const img = await createImageBitmap(imgBlob);
+                                    totalResolution += img.width * img.height;
+                                    sampleCount++;
+                                } catch (e) {
+                                    console.error(`Error processing image: ${e}`);
+                                }
+                            })());
+                        }
+                    }
+                }
+            });
+
+            await Promise.all(filePromises);
+
+            return {
+                type: 'image',
+                size: totalImages,
+                classes: classes.length,
+                classDistribution: imageCounts,
+                avgResolution: sampleCount > 0 ? totalResolution / sampleCount : 0,
+                channels: 3
+            };
+        };
+
+        const loadPDFDataset = async (zipFile) => {
+            const JSZip = window.JSZip;
+            const zip = new JSZip();
+            await zip.loadAsync(zipFile);
+
+            const classes = [];
+            const pdfCounts = {};
+            let totalPDFs = 0;
+            let totalPages = 0;
+            let totalTextLength = 0;
+            let sampleCount = 0;
+
+            zip.forEach((relativePath, file) => {
+                if (!file.dir && relativePath.endsWith('.pdf')) {
+                    const folderMatch = relativePath.match(/^([^\/]+)\//);
+                    if (folderMatch) {
+                        const className = folderMatch[1];
+                        if (!classes.includes(className)) {
+                            classes.push(className);
+                            pdfCounts[className] = 0;
+                        }
+                        pdfCounts[className]++;
+                        totalPDFs++;
+                    }
+                }
+            });
+
+            const parsePromises = [];
+            let processed = 0;
+            
+            zip.forEach((relativePath, file) => {
+                if (!file.dir && relativePath.endsWith('.pdf') && processed % 20 === 0) {
+                    const match = relativePath.match(/^([^\/]+)\//);
+                    if (match) {
+                        parsePromises.push(
+                            (async () => {
+                                try {
+                                    const arrayBuf = await file.async('arraybuffer');
+                                    const buffer = new Uint8Array(arrayBuf);
+                                    const data = await window.pdfParse(buffer);
+                                    totalTextLength += data.text.length;
+                                    totalPages += data.numpages;
+                                    sampleCount++;
+                                } catch (e) {
+                                    console.error(`Error processing PDF: ${e}`);
+                                }
+                            })()
+                        );
+                    }
+                }
+                processed++;
+            });
+
+            await Promise.all(parsePromises);
+
+            const avgTextLength = sampleCount > 0 ? totalTextLength / sampleCount : 0;
+            const avgPages = sampleCount > 0 ? totalPages / sampleCount : 0;
+
+            return {
+                type: 'pdf',
+                size: totalPDFs,
+                classes: classes.length,
+                classDistribution: pdfCounts,
+                avgTextLength,
+                avgPages,
+                vocabSize: Math.round(avgTextLength * 0.1)
+            };
+        };
+
+        const loadDataset = async (file) => {
+            if (file.name.endsWith('.csv')) {
+                return loadCSVDataset(file);
+            } else if (file.name.endsWith('.zip')) {
+                if (file.name.toLowerCase().includes('image')) {
+                    return loadImageDataset(file);
+                } else if (file.name.toLowerCase().includes('pdf')) {
+                    return loadPDFDataset(file);
+                } else {
+                    try {
+                        return await loadImageDataset(file);
+                    } catch (e) {
+                        return await loadPDFDataset(file);
+                    }
+                }
+            } else {
+                throw new Error('Format file tidak didukung');
+            }
+        };
+
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const datasetInfo = document.getElementById('dataset-info');
+        const recommendation = document.getElementById('recommendation');
+        const loadingIndicator = document.getElementById('loading');
+        const errorDisplay = document.getElementById('error');
+        const filePreview = document.getElementById('file-preview');
+        const fileDetails = document.getElementById('file-details');
+        const modelVisualization = document.getElementById('model-visualization');
+        const copyBtn = document.getElementById('copy-btn');
+        const downloadBtn = document.getElementById('download-btn');
+
+        dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('dragleave', handleDragLeave);
+        dropZone.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        copyBtn.addEventListener('click', copyRecommendation);
+        downloadBtn.addEventListener('click', downloadReport);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        }
+
+        function handleDragLeave() {
+            dropZone.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                processFile(e.dataTransfer.files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            if (e.target.files.length) {
+                processFile(e.target.files[0]);
+            }
+        }
+
+        async function processFile(file) {
+            try {
+                // Reset UI
+                errorDisplay.classList.add('hidden');
+                datasetInfo.classList.add('hidden');
+                recommendation.classList.add('hidden');
+                loadingIndicator.classList.remove('hidden');
+                filePreview.innerHTML = '';
+                fileDetails.innerHTML = '';
+                modelVisualization.innerHTML = '';
+
+                // Show file preview
+                const fileType = getFileType(file.name);
+                showFilePreview(file, fileType);
+
+                // Load external libraries
+                await loadExternalDependencies(fileType);
+
+                // Process dataset
+                const metadata = await loadDataset(file);
+                const analysis = analyzeDataset(metadata);
+                const recommendationData = recommendModel(analysis);
+
+                // Display results
+                displayDatasetInfo(metadata);
+                displayRecommendation(recommendationData);
+                visualizeModel(recommendationData.layers);
+
+                loadingIndicator.classList.add('hidden');
+                datasetInfo.classList.remove('hidden');
+                recommendation.classList.remove('hidden');
+            } catch (error) {
+                console.error('Error processing dataset:', error);
+                loadingIndicator.classList.add('hidden');
+                errorDisplay.textContent = `Error: ${error.message}`;
+                errorDisplay.classList.remove('hidden');
+            }
+        }
+
+        async function loadExternalDependencies(fileType) {
+            if (fileType === 'image' || fileType === 'pdf') {
+                if (!window.JSZip) {
+                    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+                }
+            }
+            
+            if (fileType === 'pdf' && !window.pdfParse) {
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf-parse/1.1.1/pdf-parse.min.js');
+            }
+            
+            if (fileType === 'csv' && !window.Papa) {
+                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js');
+            }
+        }
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        function getFileType(filename) {
+            if (filename.endsWith('.csv')) return 'csv';
+            if (filename.endsWith('.zip')) {
+                if (filename.toLowerCase().includes('image')) return 'image';
+                if (filename.toLowerCase().includes('pdf')) return 'pdf';
+                return 'unknown';
+            }
+            return 'unknown';
+        }
+
+        function showFilePreview(file, type) {
+            filePreview.innerHTML = `
+                <div class="file-preview-card">
+                    <div class="file-icon">
+                        ${type === 'csv' ? '<i class="fa-solid fa-file-csv"></i>' : ''}
+                        ${type === 'image' ? '<i class="fa-solid fa-file-image"></i>' : ''}
+                        ${type === 'pdf' ? '<i class="fa-solid fa-file-pdf"></i>' : ''}
+                        ${type === 'unknown' ? '<i class="fa-solid fa-file"></i>' : ''}
+                    </div>
+                    <div class="file-info">
+                        <h3>${file.name}</h3>
+                        <p>${formatFileSize(file.size)}</p>
+                        <p class="file-type">${type.toUpperCase()} file</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function displayDatasetInfo(metadata) {
+            fileDetails.innerHTML = `
+                <div class="file-detail">
+                    <span>Jenis Dataset:</span>
+                    <span class="detail-value">${metadata.type}</span>
+                </div>
+                <div class="file-detail">
+                    <span>Jumlah Sampel:</span>
+                    <span class="detail-value">${metadata.size.toLocaleString()}</span>
+                </div>
+                ${metadata.classes ? `
+                <div class="file-detail">
+                    <span>Jumlah Kelas:</span>
+                    <span class="detail-value">${metadata.classes}</span>
+                </div>` : ''}
+                ${metadata.features ? `
+                <div class="file-detail">
+                    <span>Jumlah Fitur:</span>
+                    <span class="detail-value">${metadata.features}</span>
+                </div>` : ''}
+                ${metadata.avgResolution ? `
+                <div class="file-detail">
+                    <span>Resolusi Rata-rata:</span>
+                    <span class="detail-value">${Math.round(metadata.avgResolution)} pixels</span>
+                </div>` : ''}
+                ${metadata.avgTextLength ? `
+                <div class="file-detail">
+                    <span>Panjang Teks Rata-rata:</span>
+                    <span class="detail-value">${metadata.avgTextLength.toLocaleString()} karakter</span>
+                </div>` : ''}
+                ${metadata.vocabSize ? `
+                <div class="file-detail">
+                    <span>Ukuran Kosakata:</span>
+                    <span class="detail-value">${metadata.vocabSize.toLocaleString()}</span>
+                </div>` : ''}
+            `;
+        }
+
+        function displayRecommendation(recommendation) {
+            const hyper = recommendation.hyperparameters;
+            
+            document.getElementById('model-name').textContent = recommendation.model;
+            document.getElementById('model-paper').innerHTML = `<strong>Referensi:</strong> ${recommendation.paper}`;
+            document.getElementById('model-explanation').textContent = recommendation.explanation;
+            
+            document.getElementById('hyper-epochs').textContent = hyper.epochs;
+            document.getElementById('hyper-lr').textContent = hyper.learningRate.toFixed(5);
+            document.getElementById('hyper-batch').textContent = hyper.batchSize;
+            document.getElementById('hyper-validation').textContent = `${hyper.validationSplit * 100}%`;
+            document.getElementById('hyper-stopping').textContent = hyper.earlyStopping ? 'Ya' : 'Tidak';
+            
+            copyBtn.classList.remove('hidden');
+            downloadBtn.classList.remove('hidden');
+        }
+
+        function visualizeModel(layers) {
+            modelVisualization.innerHTML = '<h3>Visualisasi Arsitektur Model</h3>';
+            
+            layers.forEach((layer, index) => {
+                const layerCard = document.createElement('div');
+                layerCard.className = 'model-layer';
+                layerCard.innerHTML = `
+                    <div class="layer-header">
+                        <span class="layer-number">${index + 1}</span>
+                        <span class="layer-type">${layer.type}</span>
+                    </div>
+                    <div class="layer-details">
+                        ${Object.entries(layer)
+                            .filter(([key]) => key !== 'type')
+                            .map(([key, value]) => `
+                                <div class="layer-param">
+                                    <span>${key}:</span>
+                                    <span>${Array.isArray(value) ? value.join(', ') : value}</span>
+                                </div>
+                            `)
+                            .join('')}
+                    </div>
+                `;
+                modelVisualization.appendChild(layerCard);
+            });
+        }
+
+        function copyRecommendation() {
+            const modelName = document.getElementById('model-name').textContent;
+            const explanation = document.getElementById('model-explanation').textContent;
+            const hyper = document.getElementById('hyper-params').innerText;
+            
+            const text = `Model Rekomendasi: ${modelName}\n\n${explanation}\n\nHyperparameter:\n${hyper}`;
+            
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    const alert = document.createElement('div');
+                    alert.className = 'alert success';
+                    alert.textContent = 'Rekomendasi berhasil disalin!';
+                    document.body.appendChild(alert);
+                    setTimeout(() => alert.remove(), 3000);
+                })
+                .catch(err => {
+                    console.error('Failed to copy: ', err);
+                });
+        }
+
+        function downloadReport() {
+            const modelName = document.getElementById('model-name').textContent;
+            const explanation = document.getElementById('model-explanation').textContent;
+            const hyper = document.getElementById('hyper-params').innerText;
+            const layers = document.getElementById('model-visualization').innerText;
+            
+            const content = `WebNN Model Advisor Report\n\n` +
+                            `Model Rekomendasi: ${modelName}\n\n` +
+                            `${explanation}\n\n` +
+                            `Hyperparameter:\n${hyper}\n\n` +
+                            `Arsitektur Model:\n${layers}`;
+            
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `model-advisor-report-${new Date().toISOString().slice(0, 10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+
     <script>
-        // Setup browse button
         document.getElementById('browse-btn').addEventListener('click', () => {
             document.getElementById('file-input').click();
         });
