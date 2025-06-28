@@ -32,7 +32,6 @@ jobs:
       - name: Build package
         run: npm run build
 
-      # Publish to npmjs (@galihridhoutomo)
       - name: Publish to npmjs
         run: |
           # Configure npmjs registry
@@ -42,7 +41,6 @@ jobs:
           # Publish with explicit registry
           npm publish --access public --registry=https://registry.npmjs.org
 
-      # Publish to GitHub Packages (@4211421036)
       - name: Publish to GitHub Packages
         run: |
           # Configure GitHub Packages registry
