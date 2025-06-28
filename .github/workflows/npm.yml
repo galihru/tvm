@@ -13,9 +13,11 @@ permissions:
   id-token: write
 
 jobs:
-  build:
-    name: Build & Test
+  build-and-publish:
+    name: Build, Test & Publish
     runs-on: ubuntu-latest
+    environment: npmjs
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,40 +50,10 @@ jobs:
       - name: Run tests (skip if none)
         run: npm test -- --passWithNoTests
 
-  publish-npmjs:
-    name: Publish to npmjs.org
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    environment: npmjs
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-
       - name: Publish to npmjs.org
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  publish-gh-packages:
-    name: Publish to GitHub Packages
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    environment: npmjs
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
 
       - name: Configure GitHub Packages registry
         run: |
