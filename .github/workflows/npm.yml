@@ -42,7 +42,7 @@ jobs:
           npm publish --access public --registry=https://registry.npmjs.org
       
       - name: Create npmjs deployment
-        uses: actions/deployment@v1
+        uses: actions/github-script@v7
         with:
           environment: 'npmjs'
           environment-url: ${{ env.NPM_PACKAGE_URL }}
