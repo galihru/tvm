@@ -21,25 +21,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1) Setup Node + cache untuk npmjs.org
-      - name: Setup Node.js & npmjs registry
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: '**/package.json'
-          registry-url: 'https://registry.npmjs.org/'
-        env:
-          # token untuk npmjs.org
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Install dependencies
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+          if [ -f package-lock.json ]; then npm ci;
+          else npm install; fi
 
       - name: Build
         run: npm run build
@@ -47,22 +39,16 @@ jobs:
       - name: Run tests
         run: npm test -- --passWithNoTests
 
-      # 2) Publish ke npmjs.org
+      - name: Configure npmrc for both registries
+        run: |
+          # NPMJS Registry (scope-unscoped)
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
+          # GitHub Packages for your scope
+          echo "@galihridhoutomo:registry=https://npm.pkg.github.com/" >> ~/.npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
+
       - name: Publish to npmjs.org
         run: npm publish --access public
-        # setup-node sudah menulis .npmrc menggunakan NODE_AUTH_TOKEN
 
-      # 3) Setup Node + registry untuk GitHub Packages
-      - name: Setup Node.js & GitHub Packages registry
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@galihridhoutomo'
-        env:
-          # token untuk GitHub Packages
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # 4) Publish ke GitHub Packages
       - name: Publish to GitHub Packages
-        run: npm publish --access public
+        run: npm publish --access public --registry=https://npm.pkg.github.com/
