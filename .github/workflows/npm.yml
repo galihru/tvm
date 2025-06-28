@@ -44,7 +44,7 @@ jobs:
       - name: Create npmjs deployment
         uses: actions/deployment@v1
         with:
-          environment: 'TVM AI npmjs'
+          environment: 'npmjs'
           environment-url: ${{ env.NPM_PACKAGE_URL }}
           description: 'Published @galihridhoutomo/tvm to npmjs'
 
