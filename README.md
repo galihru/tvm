@@ -1,6 +1,6 @@
 # WebNN Model Advisor - Intelligent Neural Network Architecture Recommendation
 
-The **TVM WebNN Model Advisor** is an advanced AI-powered module that provides intelligent neural network architecture recommendations based on dataset characteristics. Leveraging mathematical formulations from cutting-edge research, this module analyzes your dataset (CSV, images, or PDFs) and recommends optimal model architectures, hyperparameters, and training configurations.
+The **TVM AI WebNN Model Advisor** is an advanced AI-powered module that provides intelligent neural network architecture recommendations based on dataset characteristics. Leveraging mathematical formulations from cutting-edge research, this module analyzes your dataset (CSV, images, or PDFs) and recommends optimal model architectures, hyperparameters, and training configurations.
 
 ## Features
 
@@ -14,13 +14,13 @@ The **TVM WebNN Model Advisor** is an advanced AI-powered module that provides i
 ## Installation
 
 ```bash
-npm install @4211421036/tvm
+npm install @galihridhoutomo/tvmai
 ```
 
 Or for GitHub Package:
 
 ```bash
-npm install @4211421036/tvm
+npm install @galihridhoutomo/tvmai
 ```
 
 ## Mathematical Foundations
