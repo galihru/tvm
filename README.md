@@ -14,7 +14,7 @@ The **TVM WebNN Model Advisor** is an advanced AI-powered module that provides i
 ## Installation
 
 ```bash
-npm install tvm
+npm install @4211421036/tvm
 ```
 
 Or for GitHub Package:
