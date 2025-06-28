@@ -2,8 +2,10 @@ name: Publish WebNN Module
 
 on:
   push:
-    branches: [main]
-    tags: ['v*.*.*']
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
 
 permissions:
   contents: write
@@ -16,38 +18,45 @@ jobs:
     environment: npmjs
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Setup Node.js (cache only)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: '**/package.json'
+    - name: Setup Node.js & cache
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: '**/package.json'
 
-      - name: Install dependencies
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+    - name: Install dependencies
+      run: |
+        if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
-      - name: Build
-        run: npm run build
+    - name: Build
+      run: npm run build
 
-      - name: Run tests
-        run: npm test -- --passWithNoTests
+    - name: Run tests
+      run: npm test -- --passWithNoTests
 
-      - name: Generate .npmrc for both registries
-        run: |
-          # agar default registry = npmjs.org
-          echo "registry=https://registry.npmjs.org/" > ~/.npmrc
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
+    - name: Publish to npmjs.org
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: npm publish --access public
 
-          # agar scope @galihridhoutomo go to GitHub Packages
-          echo "@galihridhoutomo:registry=https://npm.pkg.github.com/" >> ~/.npmrc
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GH_TOKEN }}" >> ~/.npmrc
+    - name: Patch package.json for GitHub Packages
+      run: |
+        # install jq for JSON patching
+        sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Publish to npmjs.org
-        run: npm publish --access public
+        # inject new name and publishConfig for GitHub Packages
+        jq '.name = "@4211421036/tvm" |
+            .publishConfig = { "registry": "https://npm.pkg.github.com/" }' \
+           package.json > tmp.package.json
+        mv tmp.package.json package.json
 
-      - name: Publish to GitHub Packages
-        run: npm publish --access public --registry=https://npm.pkg.github.com/
+    - name: Configure .npmrc for GitHub Packages
+      run: |
+        echo "//npm.pkg.github.com/:_authToken=${{ secrets.GH_TOKEN }}" > ~/.npmrc
+
+    - name: Publish to GitHub Packages
+      run: npm publish --access public
