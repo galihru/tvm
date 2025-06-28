@@ -50,10 +50,13 @@ jobs:
       - name: Run tests (skip if none)
         run: npm test -- --passWithNoTests
 
-      - name: Publish to npmjs.org
-        run: npm publish --access public
+      - name: Publish to GitHub Packages
+        run: npm login --registry=https://npm.pkg.github.com --scope=@galihridhoutomo
+             npm publish --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          node-version: 18
+          registry-url: 'https://registry.npmjs.org/'
+          NODE_AUTH_TOKEN: ${{ secrets.GH_TOKEN }}
 
       - name: Configure GitHub Packages registry
         run: |
