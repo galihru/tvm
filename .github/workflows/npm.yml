@@ -2,21 +2,12 @@ name: Publish Package
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+    tags: ['v*.*.*']
 
-permissions:
-  contents: write
-  deployments: write
-  id-token: write
-  
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,6 +17,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm install
@@ -37,27 +29,28 @@ jobs:
         run: npm run build
 
       # Publish to npmjs (@galihridhoutomo)
-      - name: Publish to npmjs
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Configure npmjs auth
         run: |
-          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
-          npm publish --access public
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
+
+      - name: Publish to npmjs
+        run: npm publish --access public
 
       # Publish to GitHub Packages (@4211421036)
+      - name: Configure GitHub Packages auth
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
+          echo "@4211421036:registry=https://npm.pkg.github.com" >> ~/.npmrc
+
       - name: Publish to GitHub Packages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Backup original package.json
           cp package.json package.json.bak
           
-          # Temporarily change name
+          # Temporarily change name and registry
           npm pkg set name=@4211421036/tvm
-          
-          # Configure GitHub registry
-          echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> ~/.npmrc
-          echo "@4211421036:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          npm pkg set publishConfig.registry=https://npm.pkg.github.com
           
           # Publish
           npm publish --access public
