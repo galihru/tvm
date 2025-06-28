@@ -1,5 +1,5 @@
 {
-  "name": "@4211421036/tvm",
+  "name": "@galihridhoutomo/tvm",
   "version": "0.1.0",
   "description": "Training and Evaluation AI Model Recommendation Engine for WebNN",
   "main": "dist/index.js",
