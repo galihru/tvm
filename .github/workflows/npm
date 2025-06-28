@@ -50,7 +50,7 @@ jobs:
           
           # Temporarily modify package.json
           cp package.json package.json.bak
-          npm pkg set name=@galihridhoutomo/tvm
+          npm pkg set name=@galihridhoutomo/tvmai
           npm pkg set publishConfig.registry=https://npm.pkg.github.com
           
           # Publish with explicit registry
