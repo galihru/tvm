@@ -46,7 +46,7 @@ jobs:
         run: |
           # Configure GitHub Packages registry
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
-          echo "@galihridhoutomo:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          echo "@4211421036:registry=https://npm.pkg.github.com" >> ~/.npmrc
           
           # Temporarily modify package.json
           cp package.json package.json.bak
