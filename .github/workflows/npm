@@ -41,7 +41,7 @@ jobs:
           # Publish with explicit registry
           npm publish --access public --registry=https://registry.npmjs.org
           # Store package URL
-          echo "NPM_PACKAGE_URL=https://www.npmjs.com/package/@galihridhoutomo/tvm/" >> $GITHUB_ENV
+          echo "NPM_PACKAGE_URL=https://www.npmjs.com/package/@galihridhoutomo/tvmai/" >> $GITHUB_ENV
           echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Create deployment status
@@ -55,7 +55,7 @@ jobs:
                 repo: context.repo.repo,
                 ref: context.ref,
                 environment: 'TVM AI npmjs',
-                description: `Published @galihridhoutomo/tvm@${process.env.PACKAGE_VERSION}`,
+                description: `Published @galihridhoutomo/tvmai@${process.env.PACKAGE_VERSION}`,
                 auto_merge: false,
                 required_contexts: []
               });
