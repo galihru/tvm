@@ -2,10 +2,8 @@ name: Publish WebNN Module
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - 'v*.*.*'
+    branches: [main]
+    tags: ['v*.*.*']
 
 permissions:
   contents: write
@@ -21,7 +19,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js (cache only)
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -30,8 +28,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          if [ -f package-lock.json ]; then npm ci;
-          else npm install; fi
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
       - name: Build
         run: npm run build
@@ -39,13 +36,15 @@ jobs:
       - name: Run tests
         run: npm test -- --passWithNoTests
 
-      - name: Configure npmrc for both registries
+      - name: Generate .npmrc for both registries
         run: |
-          # NPMJS Registry (scope-unscoped)
+          # agar default registry = npmjs.org
+          echo "registry=https://registry.npmjs.org/" > ~/.npmrc
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> ~/.npmrc
-          # GitHub Packages for your scope
+
+          # agar scope @galihridhoutomo go to GitHub Packages
           echo "@galihridhoutomo:registry=https://npm.pkg.github.com/" >> ~/.npmrc
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GH_TOKEN }}" >> ~/.npmrc
 
       - name: Publish to npmjs.org
         run: npm publish --access public
