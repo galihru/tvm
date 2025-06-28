@@ -2,8 +2,14 @@ name: Publish Package
 
 on:
   push:
-    tags: ['v*.*.*']
+    branches:
+      - main
 
+permissions:
+  contents: write
+  deployments: write
+  id-token: write
+  
 jobs:
   publish:
     runs-on: ubuntu-latest
