@@ -21,9 +21,6 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          registry-url: 'https://npm.pkg.github.com/'
-          scope: '@galihridhoutomo'
-          always-auth: true
 
       - name: Install dependencies
         run: npm install
@@ -34,7 +31,30 @@ jobs:
       - name: Build package
         run: npm run build
 
+      # Publish to npmjs (@galihridhoutomo)
+      - name: Publish to npmjs
+        run: |
+          # Configure npmjs registry
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
+          
+          # Publish with explicit registry
+          npm publish --access public --registry=https://registry.npmjs.org
+
+      # Publish to GitHub Packages (@4211421036)
       - name: Publish to GitHub Packages
-        run: npm publish --registry=https://npm.pkg.github.com/ --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Configure GitHub Packages registry
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
+          echo "@4211421036:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          
+          # Temporarily modify package.json
+          cp package.json package.json.bak
+          npm pkg set name=@4211421036/tvm
+          npm pkg set publishConfig.registry=https://npm.pkg.github.com
+          
+          # Publish with explicit registry
+          npm publish --access public --registry=https://npm.pkg.github.com
+          
+          # Restore package.json
+          mv package.json.bak package.json
