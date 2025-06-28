@@ -11,6 +11,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      deployments: write
       
     steps:
       - name: Checkout code
@@ -58,3 +59,10 @@ jobs:
           
           # Restore package.json
           mv package.json.bak package.json
+
+      - name: Create npmjs deployment
+        uses: actions/deployment@v1
+        with:
+          environment: 'TVM AI NPMJS'
+          environment-url: ${{ env.NPM_PACKAGE_URL }}
+          description: 'Published @galihridhoutomo/tvm to npmjs'
