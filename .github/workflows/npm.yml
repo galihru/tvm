@@ -2,12 +2,15 @@ name: Publish Package
 
 on:
   push:
-    branches: [main]
     tags: ['v*.*.*']
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -28,28 +31,27 @@ jobs:
         run: npm run build
 
       # Publish to npmjs (@galihridhoutomo)
-      - name: Configure npmjs auth
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-          echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
-
       - name: Publish to npmjs
-        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+          npm publish --access public
 
       # Publish to GitHub Packages (@4211421036)
-      - name: Configure GitHub Packages auth
-        run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
-          echo "@4211421036:registry=https://npm.pkg.github.com" >> ~/.npmrc
-
       - name: Publish to GitHub Packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Backup original package.json
           cp package.json package.json.bak
           
-          # Temporarily change name and registry
+          # Temporarily change name
           npm pkg set name=@4211421036/tvm
-          npm pkg set publishConfig.registry=https://npm.pkg.github.com
+          
+          # Configure GitHub registry
+          echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> ~/.npmrc
+          echo "@4211421036:registry=https://npm.pkg.github.com" >> ~/.npmrc
           
           # Publish
           npm publish --access public
