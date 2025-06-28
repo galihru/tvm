@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebNN Model Advisor - AI Recommendation Engine</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script type="module">
+        import { loadDataset, analyzeDataset, recommendModel } from 'https://cdn.jsdelivr.net/npm/@galihridhoutomo/tvmai@0.1.7/dist/index.js';
+
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const datasetInfo = document.getElementById('dataset-info');
+        const recommendation = document.getElementById('recommendation');
+        const loadingIndicator = document.getElementById('loading');
+        const errorDisplay = document.getElementById('error');
+        const filePreview = document.getElementById('file-preview');
+        const fileDetails = document.getElementById('file-details');
+        const modelVisualization = document.getElementById('model-visualization');
+        const copyBtn = document.getElementById('copy-btn');
+        const downloadBtn = document.getElementById('download-btn');
+
+        // Event Listeners
+        dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('dragleave', handleDragLeave);
+        dropZone.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        copyBtn.addEventListener('click', copyRecommendation);
+        downloadBtn.addEventListener('click', downloadReport);
+
+        // Functions
+        function handleDragOver(e) {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        }
+
+        function handleDragLeave() {
+            dropZone.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                processFile(e.dataTransfer.files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            if (e.target.files.length) {
+                processFile(e.target.files[0]);
+            }
+        }
+
+        async function processFile(file) {
+            try {
+                // Reset UI
+                errorDisplay.classList.add('hidden');
+                datasetInfo.classList.add('hidden');
+                recommendation.classList.add('hidden');
+                loadingIndicator.classList.remove('hidden');
+                filePreview.innerHTML = '';
+                fileDetails.innerHTML = '';
+                modelVisualization.innerHTML = '';
+
+                // Show file preview
+                const fileType = getFileType(file.name);
+                showFilePreview(file, fileType);
+
+                // Process dataset
+                const metadata = await loadDataset(file);
+                const analysis = analyzeDataset(metadata);
+                const recommendationData = recommendModel(analysis);
+
+                // Display results
+                displayDatasetInfo(metadata);
+                displayRecommendation(recommendationData);
+                visualizeModel(recommendationData.layers);
+
+                loadingIndicator.classList.add('hidden');
+                datasetInfo.classList.remove('hidden');
+                recommendation.classList.remove('hidden');
+            } catch (error) {
+                console.error('Error processing dataset:', error);
+                loadingIndicator.classList.add('hidden');
+                errorDisplay.textContent = `Error: ${error.message}`;
+                errorDisplay.classList.remove('hidden');
+            }
+        }
+
+        function getFileType(filename) {
+            if (filename.endsWith('.csv')) return 'csv';
+            if (filename.endsWith('.zip')) {
+                if (filename.toLowerCase().includes('image')) return 'image';
+                if (filename.toLowerCase().includes('pdf')) return 'pdf';
+                return 'unknown';
+            }
+            return 'unknown';
+        }
+
+        function showFilePreview(file, type) {
+            filePreview.innerHTML = `
+                <div class="file-preview-card">
+                    <div class="file-icon">
+                        ${type === 'csv' ? '<i class="fa-solid fa-file-csv"></i>' : ''}
+                        ${type === 'image' ? '<i class="fa-solid fa-file-image"></i>' : ''}
+                        ${type === 'pdf' ? '<i class="fa-solid fa-file-pdf"></i>' : ''}
+                        ${type === 'unknown' ? '<i class="fa-solid fa-file"></i>' : ''}
+                    </div>
+                    <div class="file-info">
+                        <h3>${file.name}</h3>
+                        <p>${formatFileSize(file.size)}</p>
+                        <p class="file-type">${type.toUpperCase()} file</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function displayDatasetInfo(metadata) {
+            fileDetails.innerHTML = `
+                <div class="file-detail">
+                    <span>Jenis Dataset:</span>
+                    <span class="detail-value">${metadata.type}</span>
+                </div>
+                <div class="file-detail">
+                    <span>Jumlah Sampel:</span>
+                    <span class="detail-value">${metadata.size.toLocaleString()}</span>
+                </div>
+                ${metadata.classes ? `
+                <div class="file-detail">
+                    <span>Jumlah Kelas:</span>
+                    <span class="detail-value">${metadata.classes}</span>
+                </div>` : ''}
+                ${metadata.features ? `
+                <div class="file-detail">
+                    <span>Jumlah Fitur:</span>
+                    <span class="detail-value">${metadata.features}</span>
+                </div>` : ''}
+                ${metadata.avgResolution ? `
+                <div class="file-detail">
+                    <span>Resolusi Rata-rata:</span>
+                    <span class="detail-value">${Math.round(metadata.avgResolution)} pixels</span>
+                </div>` : ''}
+                ${metadata.avgTextLength ? `
+                <div class="file-detail">
+                    <span>Panjang Teks Rata-rata:</span>
+                    <span class="detail-value">${metadata.avgTextLength.toLocaleString()} karakter</span>
+                </div>` : ''}
+                ${metadata.vocabSize ? `
+                <div class="file-detail">
+                    <span>Ukuran Kosakata:</span>
+                    <span class="detail-value">${metadata.vocabSize.toLocaleString()}</span>
+                </div>` : ''}
+            `;
+        }
+
+        function displayRecommendation(recommendation) {
+            const hyper = recommendation.hyperparameters;
+            
+            document.getElementById('model-name').textContent = recommendation.model;
+            document.getElementById('model-paper').innerHTML = `<strong>Referensi:</strong> ${recommendation.paper}`;
+            document.getElementById('model-explanation').textContent = recommendation.explanation;
+            
+            document.getElementById('hyper-epochs').textContent = hyper.epochs;
+            document.getElementById('hyper-lr').textContent = hyper.learningRate.toFixed(5);
+            document.getElementById('hyper-batch').textContent = hyper.batchSize;
+            document.getElementById('hyper-validation').textContent = `${hyper.validationSplit * 100}%`;
+            document.getElementById('hyper-stopping').textContent = hyper.earlyStopping ? 'Ya' : 'Tidak';
+            
+            // Show copy/download buttons
+            copyBtn.classList.remove('hidden');
+            downloadBtn.classList.remove('hidden');
+        }
+
+        function visualizeModel(layers) {
+            modelVisualization.innerHTML = '<h3>Visualisasi Arsitektur Model</h3>';
+            
+            layers.forEach((layer, index) => {
+                const layerCard = document.createElement('div');
+                layerCard.className = 'model-layer';
+                layerCard.innerHTML = `
+                    <div class="layer-header">
+                        <span class="layer-number">${index + 1}</span>
+                        <span class="layer-type">${layer.type}</span>
+                    </div>
+                    <div class="layer-details">
+                        ${Object.entries(layer)
+                            .filter(([key]) => key !== 'type')
+                            .map(([key, value]) => `
+                                <div class="layer-param">
+                                    <span>${key}:</span>
+                                    <span>${Array.isArray(value) ? value.join(', ') : value}</span>
+                                </div>
+                            `)
+                            .join('')}
+                    </div>
+                `;
+                modelVisualization.appendChild(layerCard);
+            });
+        }
+
+        function copyRecommendation() {
+            const modelName = document.getElementById('model-name').textContent;
+            const explanation = document.getElementById('model-explanation').textContent;
+            const hyper = document.getElementById('hyper-params').innerText;
+            
+            const text = `Model Rekomendasi: ${modelName}\n\n${explanation}\n\nHyperparameter:\n${hyper}`;
+            
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    const alert = document.createElement('div');
+                    alert.className = 'alert success';
+                    alert.textContent = 'Rekomendasi berhasil disalin!';
+                    document.body.appendChild(alert);
+                    setTimeout(() => alert.remove(), 3000);
+                })
+                .catch(err => {
+                    console.error('Failed to copy: ', err);
+                });
+        }
+
+        function downloadReport() {
+            const modelName = document.getElementById('model-name').textContent;
+            const explanation = document.getElementById('model-explanation').textContent;
+            const hyper = document.getElementById('hyper-params').innerText;
+            const layers = document.getElementById('model-visualization').innerText;
+            
+            const content = `WebNN Model Advisor Report\n\n` +
+                            `Model Rekomendasi: ${modelName}\n\n` +
+                            `${explanation}\n\n` +
+                            `Hyperparameter:\n${hyper}\n\n` +
+                            `Arsitektur Model:\n${layers}`;
+            
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `model-advisor-report-${new Date().toISOString().slice(0, 10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary: #7209b7;
+            --success: #4cc9f0;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --gray: #6c757d;
+            --light-gray: #e9ecef;
+            --border-radius: 12px;
+            --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+            color: var(--dark);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+        }
+
+        header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        header p {
+            font-size: 1.2rem;
+            color: var(--gray);
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 30px;
+            margin-bottom: 30px;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .card h2 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--light-gray);
+        }
+
+        #drop-zone {
+            border: 3px dashed var(--primary);
+            border-radius: var(--border-radius);
+            padding: 50px 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+
+        #drop-zone.drag-over {
+            background-color: rgba(67, 97, 238, 0.1);
+            border-color: var(--secondary);
+        }
+
+        #drop-zone i {
+            font-size: 4rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+        }
+
+        #drop-zone h3 {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+
+        #drop-zone p {
+            color: var(--gray);
+            margin-bottom: 25px;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-block;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-3px);
+        }
+
+        .btn i {
+            margin-right: 8px;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading i {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fff0f0;
+            color: #e53e3e;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            border-left: 4px solid #e53e3e;
+            margin: 20px 0;
+        }
+
+        .file-preview-card {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            background: var(--light);
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+        }
+
+        .file-icon {
+            font-size: 3rem;
+            color: var(--primary);
+        }
+
+        .file-info h3 {
+            margin-bottom: 5px;
+        }
+
+        .file-type {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
+
+        .file-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .file-detail {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .file-detail span:first-child {
+            font-weight: 600;
+            color: var(--gray);
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            font-size: 1.2rem;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .model-card {
+            background: linear-gradient(135deg, #f0f4ff 0%, #e6f0ff 100%);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .model-name {
+            font-size: 1.8rem;
+            color: var(--secondary);
+            margin-bottom: 10px;
+        }
+
+        .model-paper {
+            font-style: italic;
+            color: var(--gray);
+            margin-bottom: 20px;
+        }
+
+        .model-explanation {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid var(--success);
+        }
+
+        .hyper-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .hyper-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .hyper-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 10px 0;
+        }
+
+        .hyper-label {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        .model-layer {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .layer-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .layer-number {
+            background: var(--primary);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .layer-type {
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--dark);
+        }
+
+        .layer-param {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+        }
+
+        .layer-param:not(:last-child) {
+            border-bottom: 1px solid var(--light-gray);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+
+        .alert {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s ease;
+        }
+
+        .success {
+            background: #38a169;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2rem;
+            }
+            
+            .hyper-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>WebNN Model Advisor</h1>
+            <p>Platform rekomendasi model AI berdasarkan dataset Anda. Unggah dataset untuk mendapatkan rekomendasi model terbaik, hyperparameter optimal, dan arsitektur jaringan saraf yang sesuai.</p>
+        </header>
+
+        <div class="card">
+            <div id="drop-zone">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <h3>Unggah Dataset Anda</h3>
+                <p>Seret & lepas file dataset Anda di sini atau klik tombol di bawah</p>
+                <button class="btn" id="browse-btn">
+                    <i class="fas fa-folder-open"></i> Pilih File
+                </button>
+                <input type="file" id="file-input" accept=".csv,.zip">
+                <p class="small">Format yang didukung: CSV, ZIP (dataset gambar), ZIP (dokumen PDF)</p>
+            </div>
+        </div>
+
+        <div id="loading" class="loading hidden">
+            <i class="fas fa-spinner"></i>
+            <h3>Menganalisis dataset Anda...</h3>
+            <p>Sedang memproses data dan menghitung rekomendasi terbaik</p>
+        </div>
+
+        <div id="error" class="error hidden">
+            Terjadi kesalahan saat memproses dataset. Silakan coba lagi.
+        </div>
+
+        <div class="card hidden" id="dataset-info">
+            <h2>Informasi Dataset</h2>
+            <div id="file-preview"></div>
+            <div id="file-details" class="file-details"></div>
+        </div>
+
+        <div class="card hidden" id="recommendation">
+            <h2>Rekomendasi Model</h2>
+            
+            <div class="model-card">
+                <h3 class="model-name" id="model-name"></h3>
+                <p class="model-paper" id="model-paper"></p>
+                <p class="model-explanation" id="model-explanation"></p>
+                
+                <h3>Hyperparameter Optimal</h3>
+                <div class="hyper-grid" id="hyper-params">
+                    <div class="hyper-card">
+                        <div class="hyper-value" id="hyper-epochs"></div>
+                        <div class="hyper-label">Epochs</div>
+                    </div>
+                    <div class="hyper-card">
+                        <div class="hyper-value" id="hyper-lr"></div>
+                        <div class="hyper-label">Learning Rate</div>
+                    </div>
+                    <div class="hyper-card">
+                        <div class="hyper-value" id="hyper-batch"></div>
+                        <div class="hyper-label">Batch Size</div>
+                    </div>
+                    <div class="hyper-card">
+                        <div class="hyper-value" id="hyper-validation"></div>
+                        <div class="hyper-label">Validation Split</div>
+                    </div>
+                    <div class="hyper-card">
+                        <div class="hyper-value" id="hyper-stopping"></div>
+                        <div class="hyper-label">Early Stopping</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="model-visualization"></div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-outline" id="copy-btn">
+                    <i class="fas fa-copy"></i> Salin Rekomendasi
+                </button>
+                <button class="btn" id="download-btn">
+                    <i class="fas fa-download"></i> Unduh Laporan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Setup browse button
+        document.getElementById('browse-btn').addEventListener('click', () => {
+            document.getElementById('file-input').click();
+        });
+    </script>
+</body>
+</html>
