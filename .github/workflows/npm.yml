@@ -46,11 +46,11 @@ jobs:
         run: |
           # Configure GitHub Packages registry
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
-          echo "@4211421036:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          echo "@galihridhoutomo:registry=https://npm.pkg.github.com" >> ~/.npmrc
           
           # Temporarily modify package.json
           cp package.json package.json.bak
-          npm pkg set name=@4211421036/tvm
+          npm pkg set name=@galihridhoutomo/tvm
           npm pkg set publishConfig.registry=https://npm.pkg.github.com
           
           # Publish with explicit registry
