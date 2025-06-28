@@ -38,7 +38,6 @@ jobs:
         
       # Publish to npmjs (@galihridhoutomo)
       - name: Publish to npmjs
-        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           npm config set @galihridhoutomo:registry https://registry.npmjs.org
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
@@ -48,7 +47,6 @@ jobs:
 
       # Publish to GitHub Packages (@4211421036)
       - name: Publish to GitHub Packages
-        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           # Temporarily change package name for GitHub Packages
           npm pkg set name=@4211421036/tvm
