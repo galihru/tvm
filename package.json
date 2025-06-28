@@ -1,6 +1,6 @@
 {
   "name": "@galihridhoutomo/tvmai",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Training and Evaluation AI Model Recommendation Engine for WebNN",
   "main": "dist/index.js",
   "types": "types/index.d.ts",
