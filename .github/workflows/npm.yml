@@ -5,12 +5,8 @@ on:
     branches: [main]
     tags: ['v*.*.*']
 
-permissions:
-  contents: read
-  packages: write
-
 jobs:
-  build-and-publish:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -23,35 +19,40 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+        run: npm install
+
+      - name: Run tests
+        run: npm test -- --passWithNoTests
 
       - name: Build package
         run: npm run build
 
-      - name: Run tests
-        run: npm test -- --passWithNoTests
-        
       # Publish to npmjs (@galihridhoutomo)
-      - name: Publish to npmjs
+      - name: Configure npmjs auth
         run: |
-          npm config set @galihridhoutomo:registry https://registry.npmjs.org
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-          npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
+
+      - name: Publish to npmjs
+        run: npm publish --access public
 
       # Publish to GitHub Packages (@4211421036)
+      - name: Configure GitHub Packages auth
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
+          echo "@4211421036:registry=https://npm.pkg.github.com" >> ~/.npmrc
+
       - name: Publish to GitHub Packages
         run: |
-          # Temporarily change package name for GitHub Packages
+          # Backup original package.json
+          cp package.json package.json.bak
+          
+          # Temporarily change name and registry
           npm pkg set name=@4211421036/tvm
-          npm config set @4211421036:registry https://npm.pkg.github.com
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
+          npm pkg set publishConfig.registry=https://npm.pkg.github.com
+          
+          # Publish
           npm publish --access public
-          # Revert package name change
-          git checkout -- package.json
+          
+          # Restore original package.json
+          mv package.json.bak package.json
