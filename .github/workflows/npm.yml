@@ -55,7 +55,7 @@ jobs:
                 repo: context.repo.repo,
                 ref: context.ref,
                 environment: 'TVM AI npmjs',
-                description: `Published @galihridhoutomo/tvmai@${process.env.PACKAGE_VERSION}`,
+                description: `Published @galihru/tvmai@${process.env.PACKAGE_VERSION}`,
                 auto_merge: false,
                 required_contexts: []
               });
@@ -81,11 +81,11 @@ jobs:
         run: |
           # Configure GitHub Packages registry
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
-          echo "@galihridhoutomo:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          echo "@galihru:registry=https://npm.pkg.github.com" >> ~/.npmrc
           
           # Temporarily modify package.json
           cp package.json package.json.bak
-          npm pkg set name=@galihridhoutomo/tvmai
+          npm pkg set name=@galihru/tvmai
           npm pkg set publishConfig.registry=https://npm.pkg.github.com
           
           # Publish with explicit registry
