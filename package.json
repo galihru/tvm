@@ -9,6 +9,10 @@
     "registry": "https://npm.pkg.github.com",
     "access": "public"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/4211421036/tvm.git"
+  },
   "scripts": {
     "build": "tsc",
     "prepublish": "npm run build",
