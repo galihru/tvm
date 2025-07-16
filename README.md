@@ -14,13 +14,13 @@ The **TVM AI WebNN Model Advisor** is an advanced AI-powered module that provide
 ## Installation
 
 ```bash
-npm install @galihridhoutomo/tvmai
+npm install @galihru/tvmai
 ```
 
 Or for GitHub Package:
 
 ```bash
-npm install @galihridhoutomo/tvmai
+npm install @galihru/tvmai
 ```
 
 ## Mathematical Foundations
