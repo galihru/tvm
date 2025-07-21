@@ -2,8 +2,10 @@ name: Dependabot Auto-Merge, Version Bump & Publish
 
 on:
   pull_request:
-    branches: [main]
-    types: [opened]
+    branches: 
+      - main
+    types: 
+      - opened
   push:
     branches:
       - main
