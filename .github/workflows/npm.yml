@@ -52,7 +52,7 @@ jobs:
       - name: Bump version (patch)
         id: bump
         run: |
-          npm version patch --no-git-tag-version -m 'chore(release): bump to %s [skip ci]'
+          npm version patch --no-git-tag-version --message "chore(release): bump to %s [skip ci]"
           echo "PACKAGE_VERSION=$(node -p \"require('./package.json').version\")" >> $GITHUB_ENV
 
       - name: Commit version bump
