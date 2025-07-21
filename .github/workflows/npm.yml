@@ -6,7 +6,7 @@ on:
       - main
     types:
       - opened
-
+      - synchronize
   push:
     branches:
       - main
@@ -14,8 +14,7 @@ on:
 jobs:
   # ──────────────────────────────────────────────────────────────────────────────
   automerge:
-    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
-    name: Auto-Merge Dependabot PR
+    if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: write
