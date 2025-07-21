@@ -1,10 +1,13 @@
 {
   "name": "@galihru/tvmai",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Training and Evaluation AI Model Recommendation Engine for WebNN",
   "main": "dist/index.js",
   "types": "types/index.d.ts",
-  "files": ["dist", "types"],
+  "files": [
+    "dist",
+    "types"
+  ],
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",
     "access": "public"
@@ -18,7 +21,12 @@
     "prepublish": "npm run build",
     "test": "jest"
   },
-  "keywords": ["webnn", "ai", "model-recommendation", "machine-learning"],
+  "keywords": [
+    "webnn",
+    "ai",
+    "model-recommendation",
+    "machine-learning"
+  ],
   "author": "GALIH RIDHO UTOMO",
   "license": "MIT",
   "dependencies": {
