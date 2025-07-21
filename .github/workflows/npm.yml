@@ -1,19 +1,16 @@
-name: Dependabot Version Bump
+name: Dependabot Auto-Merge, Version Bump & Publish
 
 on:
   pull_request:
-    branches:
-      - main
-    types:
-      - opened
-    paths:
-      - 'package.json'
-      - 'package-lock.json'
+    branches: [main]
+    types: [opened]
+  push:
+    branches: [main]
 
 jobs:
-  dependabot-version-bump:
-    if: github.event.pull_request.user.login == 'dependabot[bot]'
-    name: Bump Version for Dependabot PR
+  automerge:
+    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+    name: Auto-Merge Dependabot PR
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -22,35 +19,83 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Auto-merge Dependabot PR
+        uses: pascalgn/automerge-action@v0.15.0
         with:
-          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          merge_method: squash
+          labels: dependencies
+
+  publish:
+    if: github.event_name == 'push'
+    needs: automerge
+    name: Bump Version & Publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      deployments: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
 
-      - name: Get current version
-        id: version
-        run: echo "CURRENT_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
-
-      - name: Bump patch version
-        id: bump
+      # Bump version only if package.json changed
+      - name: Check for package.json changes
+        id: check-changes
         run: |
+          git diff --quiet HEAD^ HEAD -- package.json || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Bump version
+        if: steps.check-changes.outputs.changed == 'true'
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
           npm version patch --no-git-tag-version --no-commit-hooks
-          echo "NEW_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+          NEW_VERSION=$(node -p "require('./package.json').version")
           echo "Version bumped from $CURRENT_VERSION to $NEW_VERSION"
+          echo "VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
-      - name: Create version bump commit
-        run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json
-          git commit -m "chore: version bump to $NEW_VERSION [skip ci]"
-          git push origin HEAD:refs/pull/${{ github.event.pull_request.number }}/head
+          git commit -m "chore(release): auto bump version to $NEW_VERSION [skip ci]"
+          git push
 
-      - name: Auto-merge Dependabot PR
-        uses: pascalgn/automerge-action@v0.14.3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          merge_method: squash
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test -- --passWithNoTests
+
+      - name: Build package
+        run: npm run build
+
+      # Publish to npmjs
+      - name: Publish to npmjs
+        if: steps.check-changes.outputs.changed == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" > ~/.npmrc
+          npm publish --access public
+          echo "NPM_PACKAGE_URL=https://www.npmjs.com/package/@galihru/tvmai" >> $GITHUB_ENV
+
+      # Publish to GitHub Packages
+      - name: Publish to GitHub Packages
+        if: steps.check-changes.outputs.changed == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=$NODE_AUTH_TOKEN" > ~/.npmrc
+          echo "@galihru:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          npm publish --access public --registry=https://npm.pkg.github.com
