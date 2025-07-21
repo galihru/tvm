@@ -1,4 +1,4 @@
-name: CI & Publish
+name: Dependabot Version Bump
 
 on:
   pull_request:
@@ -6,90 +6,51 @@ on:
       - main
     types:
       - opened
-
-  push:
-    branches:
-      - main
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
 
 jobs:
-  automerge:
-    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
-    name: Auto‑merge Dependabot PR
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Auto‑merge Dependabot
-        uses: pascalgn/automerge-action@v0.14.3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          merge_method: squash
-
-  publish:
-    if: github.event_name == 'push'
-    name: Bump & Publish Package
+  dependabot-version-bump:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    name: Bump Version for Dependabot PR
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
-      deployments: write
+      pull-requests: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Get current version
         id: version
-        run: echo "PACKAGE_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+        run: echo "CURRENT_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
 
-      - name: Bump version (patch)
+      - name: Bump patch version
         id: bump
         run: |
-          # First approach - simple version bump without message
           npm version patch --no-git-tag-version --no-commit-hooks
           echo "NEW_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
-          echo "Version bumped from $PACKAGE_VERSION to $NEW_VERSION"
+          echo "Version bumped from $CURRENT_VERSION to $NEW_VERSION"
 
-      - name: Commit version bump
+      - name: Create version bump commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json
-          git commit -m "chore(release): bump version to $NEW_VERSION [skip ci]"
-          git push origin HEAD:main
+          git add package.json
+          git commit -m "chore: version bump to $NEW_VERSION [skip ci]"
+          git push origin HEAD:refs/pull/${{ github.event.pull_request.number }}/head
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run tests
-        run: npm test -- --passWithNoTests
-
-      - name: Build package
-        run: npm run build
-
-      - name: Publish to npmjs
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          npm publish --access public --registry=https://registry.npmjs.org
-          echo "NPM_PACKAGE_URL=https://www.npmjs.com/package/@galihru/tvmai" >> $GITHUB_ENV
-
-      - name: Publish to GitHub Packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cp package.json package.json.bak
-          npm pkg set name=@galihru/tvmai
-          npm pkg set publishConfig.registry=https://npm.pkg.github.com
-          npm publish --access public --registry=https://npm.pkg.github.com
-          mv package.json.bak package.json
+      - name: Auto-merge Dependabot PR
+        uses: pascalgn/automerge-action@v0.14.3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          merge_method: squash
